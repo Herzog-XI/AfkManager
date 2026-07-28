@@ -9,5 +9,7 @@
 
   <ItemGroup>
     <PackageReference Include="ExMod.Exiled" Version="9.14.2" />
+    <PackageReference Include="UnityEngine.Modules" Version="2021.3.33" />
+    <PackageReference Include="MEC" Version="3.13.4" />
   </ItemGroup>
 </Project>
