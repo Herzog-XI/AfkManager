@@ -1,31 +1,36 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using Exiled.API.Features;
-using MEC;
 using PlayerRoles;
-using UnityEngine;
 
 namespace AfkManager.Features
 {
     internal sealed class AfkService
     {
         private readonly Dictionary<int, AfkPlayer> trackedPlayers = new Dictionary<int, AfkPlayer>();
-        private CoroutineHandle coroutine;
+        private readonly object syncRoot = new object();
+        private Timer timer;
+        private int isChecking;
 
         private Config Config => Plugin.Instance.Config;
 
         public void Start()
         {
             Stop();
-            coroutine = Timing.RunCoroutine(CheckLoop());
+
+            int intervalMilliseconds = Math.Max(250, (int)(Config.CheckInterval * 1000f));
+            timer = new Timer(_ => QueueCheck(), null, intervalMilliseconds, intervalMilliseconds);
         }
 
         public void Stop()
         {
-            if (coroutine.IsRunning)
-                Timing.KillCoroutines(coroutine);
+            timer?.Dispose();
+            timer = null;
+            Interlocked.Exchange(ref isChecking, 0);
 
-            trackedPlayers.Clear();
+            lock (syncRoot)
+                trackedPlayers.Clear();
         }
 
         public void Reset(Player player)
@@ -35,32 +40,56 @@ namespace AfkManager.Features
 
             if (ShouldIgnore(player))
             {
-                trackedPlayers.Remove(player.Id);
+                Remove(player);
                 return;
             }
 
-            Quaternion rotation = GetRotation(player);
+            GetSnapshot(player, out float x, out float y, out float z, out float pitch, out float yaw);
 
-            if (trackedPlayers.TryGetValue(player.Id, out AfkPlayer state))
-                state.Reset(player.Position, rotation);
-            else
-                trackedPlayers[player.Id] = new AfkPlayer(player.Position, rotation);
+            lock (syncRoot)
+            {
+                if (trackedPlayers.TryGetValue(player.Id, out AfkPlayer state))
+                    state.Reset(x, y, z, pitch, yaw);
+                else
+                    trackedPlayers[player.Id] = new AfkPlayer(x, y, z, pitch, yaw);
+            }
         }
 
         public void Remove(Player player)
         {
-            if (player != null)
+            if (player == null)
+                return;
+
+            lock (syncRoot)
                 trackedPlayers.Remove(player.Id);
         }
 
-        private IEnumerator<float> CheckLoop()
+        private void QueueCheck()
         {
-            while (true)
-            {
-                yield return Timing.WaitForSeconds(Mathf.Max(0.25f, Config.CheckInterval));
+            if (Interlocked.Exchange(ref isChecking, 1) != 0)
+                return;
 
+            try
+            {
+                Timing.CallDelayed(0f, CheckAllPlayers);
+            }
+            catch
+            {
+                Interlocked.Exchange(ref isChecking, 0);
+                throw;
+            }
+        }
+
+        private void CheckAllPlayers()
+        {
+            try
+            {
                 foreach (Player player in Player.List)
                     CheckPlayer(player);
+            }
+            finally
+            {
+                Interlocked.Exchange(ref isChecking, 0);
             }
         }
 
@@ -69,30 +98,46 @@ namespace AfkManager.Features
             if (player == null || !player.IsConnected || ShouldIgnore(player))
             {
                 if (player != null)
-                    trackedPlayers.Remove(player.Id);
+                    Remove(player);
 
                 return;
             }
 
-            if (!trackedPlayers.TryGetValue(player.Id, out AfkPlayer state))
+            AfkPlayer state;
+            lock (syncRoot)
             {
-                Reset(player);
-                return;
+                if (!trackedPlayers.TryGetValue(player.Id, out state))
+                {
+                    GetSnapshot(player, out float initialX, out float initialY, out float initialZ, out float initialPitch, out float initialYaw);
+                    trackedPlayers[player.Id] = new AfkPlayer(initialX, initialY, initialZ, initialPitch, initialYaw);
+                    return;
+                }
             }
 
-            Vector3 position = player.Position;
-            Quaternion rotation = GetRotation(player);
+            GetSnapshot(player, out float x, out float y, out float z, out float pitch, out float yaw);
 
-            bool moved = (position - state.LastPosition).sqrMagnitude >= Config.MovementThreshold * Config.MovementThreshold;
-            bool lookedAround = Quaternion.Angle(rotation, state.LastRotation) >= Config.RotationThreshold;
+            float deltaX = x - state.LastX;
+            float deltaY = y - state.LastY;
+            float deltaZ = z - state.LastZ;
+            float movementThreshold = Math.Max(0f, Config.MovementThreshold);
+            bool moved = (deltaX * deltaX) + (deltaY * deltaY) + (deltaZ * deltaZ) >= movementThreshold * movementThreshold;
 
-            state.LastPosition = position;
-            state.LastRotation = rotation;
+            float pitchDelta = SmallestAngleDifference(pitch, state.LastPitch);
+            float yawDelta = SmallestAngleDifference(yaw, state.LastYaw);
+            float rotationThreshold = Math.Max(0f, Config.RotationThreshold);
+            bool lookedAround = Math.Max(pitchDelta, yawDelta) >= rotationThreshold;
+
+            lock (syncRoot)
+                state.UpdateSnapshot(x, y, z, pitch, yaw);
 
             if (moved || lookedAround)
             {
-                state.LastActivity = DateTime.UtcNow;
-                state.WarningSent = false;
+                lock (syncRoot)
+                {
+                    state.LastActivity = DateTime.UtcNow;
+                    state.WarningSent = false;
+                }
+
                 return;
             }
 
@@ -104,7 +149,9 @@ namespace AfkManager.Features
             if (!state.WarningSent && inactiveSeconds >= warningAfter)
             {
                 player.Broadcast(Config.WarningDuration, Config.WarningMessage, Broadcast.BroadcastFlags.Normal, true);
-                state.WarningSent = true;
+
+                lock (syncRoot)
+                    state.WarningSent = true;
             }
 
             if (inactiveSeconds < moveAfter)
@@ -115,7 +162,7 @@ namespace AfkManager.Features
             string roleName = player.Role.Type.ToString();
 
             player.Broadcast(5, Config.MovedMessage, Broadcast.BroadcastFlags.Normal, true);
-            trackedPlayers.Remove(player.Id);
+            Remove(player);
             player.Role.Set(RoleTypeId.Spectator);
 
             if (isScp && Config.NotifyAdminsWhenScpMoved)
@@ -147,9 +194,36 @@ namespace AfkManager.Features
             return player.IsOverwatch || player.Role.Type == RoleTypeId.Spectator;
         }
 
-        private static Quaternion GetRotation(Player player)
+        private static void GetSnapshot(Player player, out float x, out float y, out float z, out float pitch, out float yaw)
         {
-            return player.CameraTransform != null ? player.CameraTransform.rotation : Quaternion.identity;
+            dynamic position = player.Position;
+            x = (float)position.x;
+            y = (float)position.y;
+            z = (float)position.z;
+
+            pitch = 0f;
+            yaw = 0f;
+
+            try
+            {
+                dynamic camera = player.CameraTransform;
+                if (camera == null)
+                    return;
+
+                dynamic angles = camera.eulerAngles;
+                pitch = (float)angles.x;
+                yaw = (float)angles.y;
+            }
+            catch
+            {
+                // Position movement still counts even when camera rotation is unavailable.
+            }
+        }
+
+        private static float SmallestAngleDifference(float first, float second)
+        {
+            float difference = Math.Abs(first - second) % 360f;
+            return difference > 180f ? 360f - difference : difference;
         }
     }
 }
