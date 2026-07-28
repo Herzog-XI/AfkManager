@@ -32,14 +32,20 @@ namespace AfkManager
         [Description("Minimum camera rotation in degrees that counts as activity.")]
         public float RotationThreshold { get; set; } = 1f;
 
-        [Description("Warning broadcast duration in seconds.")]
-        public ushort WarningDuration { get; set; } = 10;
+        [Description("Duration of each refreshed AFK warning broadcast. Keep this slightly above CheckInterval.")]
+        public ushort WarningDuration { get; set; } = 2;
 
-        [Description("Message shown after the warning timeout.")]
-        public string WarningMessage { get; set; } = "<color=yellow>⚠ Du bist AFK. Bewege dich, sonst wirst du zum Zuschauer verschoben.</color>";
+        [Description("Persistent AFK warning. Available placeholders: {time}, {bar}, {color}.")]
+        public string WarningMessage { get; set; } = "<color=#4F7DFF><b>AFK-Erkennung</b></color>\n<color=#FFD966>Du bist seit längerer Zeit inaktiv.</color>\n<size=30><color={color}><b>{time}</b></color></size>\n<color={color}>{bar}</color>\n<size=18><color=#CFCFCF>Bewege dich, um den Timer zurückzusetzen.</color></size>";
 
-        [Description("Message shown immediately before moving the player to Spectator.")]
-        public string MovedMessage { get; set; } = "<color=red>Du wurdest wegen Inaktivität zum Zuschauer verschoben.</color>";
+        [Description("Number of characters used for the countdown progress bar.")]
+        public int ProgressBarLength { get; set; } = 16;
+
+        [Description("Message shown after moving the player to Spectator.")]
+        public string MovedMessage { get; set; } = "<color=#FF5A5A><b>Du wurdest wegen Inaktivität zum Zuschauer verschoben.</b></color>\n<size=18><color=#BEBEBE>Du kannst der nächsten Runde wieder normal beitreten.</color></size>";
+
+        [Description("Duration of the moved-to-Spectator message in seconds.")]
+        public ushort MovedMessageDuration { get; set; } = 8;
 
         [Description("Whether staff members with Remote Admin access receive a private broadcast when an SCP is moved to Spectator.")]
         public bool NotifyAdminsWhenScpMoved { get; set; } = true;
@@ -48,6 +54,6 @@ namespace AfkManager
         public ushort AdminNotificationDuration { get; set; } = 10;
 
         [Description("Private message shown to staff. Available placeholders: {player}, {userid}, {role}.")]
-        public string AdminScpMovedMessage { get; set; } = "<color=#ff5555>[AFK]</color> <color=white>{player} ({role}) wurde wegen Inaktivität zum Zuschauer verschoben.</color>";
+        public string AdminScpMovedMessage { get; set; } = "<color=#FF5A5A>[AFK]</color> <color=white>{player} ({role}) wurde wegen Inaktivität zum Zuschauer verschoben.</color>";
     }
 }
