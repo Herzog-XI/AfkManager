@@ -96,20 +96,50 @@ namespace AfkManager.Features
                 return;
             }
 
+            bool isScp = player.IsScp;
+            float warningAfter = isScp ? Config.ScpWarningAfter : Config.WarningAfter;
+            float moveAfter = isScp ? Config.ScpMoveAfter : Config.MoveAfter;
             double inactiveSeconds = (DateTime.UtcNow - state.LastActivity).TotalSeconds;
 
-            if (!state.WarningSent && inactiveSeconds >= Config.WarningAfter)
+            if (!state.WarningSent && inactiveSeconds >= warningAfter)
             {
                 player.Broadcast(Config.WarningDuration, Config.WarningMessage, Broadcast.BroadcastFlags.Normal, true);
                 state.WarningSent = true;
             }
 
-            if (inactiveSeconds < Config.MoveAfter)
+            if (inactiveSeconds < moveAfter)
                 return;
+
+            string playerName = player.Nickname;
+            string userId = player.UserId;
+            string roleName = player.Role.Type.ToString();
 
             player.Broadcast(5, Config.MovedMessage, Broadcast.BroadcastFlags.Normal, true);
             trackedPlayers.Remove(player.Id);
             player.Role.Set(RoleTypeId.Spectator);
+
+            if (isScp && Config.NotifyAdminsWhenScpMoved)
+                NotifyAdmins(playerName, userId, roleName);
+        }
+
+        private void NotifyAdmins(string playerName, string userId, string roleName)
+        {
+            string message = Config.AdminScpMovedMessage
+                .Replace("{player}", playerName ?? "Unknown")
+                .Replace("{userid}", userId ?? "Unknown")
+                .Replace("{role}", roleName ?? "Unknown");
+
+            foreach (Player staff in Player.List)
+            {
+                if (staff == null || !staff.IsConnected || !staff.RemoteAdminAccess)
+                    continue;
+
+                staff.Broadcast(
+                    Config.AdminNotificationDuration,
+                    message,
+                    Broadcast.BroadcastFlags.AdminChat,
+                    false);
+            }
         }
 
         private static bool ShouldIgnore(Player player)
