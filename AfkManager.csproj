@@ -13,4 +13,11 @@
   <ItemGroup>
     <PackageReference Include="ExMod.Exiled" Version="9.14.2" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>lib\UnityEngine.CoreModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
 </Project>
