@@ -69,15 +69,7 @@ namespace AfkManager.Features
             if (Interlocked.Exchange(ref isChecking, 1) != 0)
                 return;
 
-            try
-            {
-                Timing.CallDelayed(0f, CheckAllPlayers);
-            }
-            catch
-            {
-                Interlocked.Exchange(ref isChecking, 0);
-                throw;
-            }
+            CheckAllPlayers();
         }
 
         private void CheckAllPlayers()
@@ -86,6 +78,10 @@ namespace AfkManager.Features
             {
                 foreach (Player player in Player.List)
                     CheckPlayer(player);
+            }
+            catch (Exception exception)
+            {
+                Log.Error($"AFK check failed: {exception}");
             }
             finally
             {
