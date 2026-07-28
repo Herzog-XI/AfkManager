@@ -187,28 +187,28 @@ namespace AfkManager.Features
 
         private static bool ShouldIgnore(Player player)
         {
-            return player.IsOverwatch || player.Role.Type == RoleTypeId.Spectator;
+            return player.Role.Type == RoleTypeId.Spectator;
         }
 
         private static void GetSnapshot(Player player, out float x, out float y, out float z, out float pitch, out float yaw)
         {
-            dynamic position = player.Position;
-            x = (float)position.x;
-            y = (float)position.y;
-            z = (float)position.z;
+            var position = player.Position;
+            x = position.x;
+            y = position.y;
+            z = position.z;
 
             pitch = 0f;
             yaw = 0f;
 
             try
             {
-                dynamic camera = player.CameraTransform;
+                var camera = player.CameraTransform;
                 if (camera == null)
                     return;
 
-                dynamic angles = camera.eulerAngles;
-                pitch = (float)angles.x;
-                yaw = (float)angles.y;
+                var angles = camera.eulerAngles;
+                pitch = angles.x;
+                yaw = angles.y;
             }
             catch
             {
