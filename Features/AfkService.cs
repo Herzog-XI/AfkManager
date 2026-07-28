@@ -142,9 +142,16 @@ namespace AfkManager.Features
             float moveAfter = isScp ? Config.ScpMoveAfter : Config.MoveAfter;
             double inactiveSeconds = (DateTime.UtcNow - state.LastActivity).TotalSeconds;
 
-            if (!state.WarningSent && inactiveSeconds >= warningAfter)
+            if (inactiveSeconds >= warningAfter && inactiveSeconds < moveAfter)
             {
-                player.Broadcast(Config.WarningDuration, Config.WarningMessage, Broadcast.BroadcastFlags.Normal, true);
+                int remainingSeconds = Math.Max(0, (int)Math.Ceiling(moveAfter - inactiveSeconds));
+                string warning = BuildWarningMessage(remainingSeconds, warningAfter, moveAfter);
+
+                player.Broadcast(
+                    Config.WarningDuration,
+                    warning,
+                    Broadcast.BroadcastFlags.Normal,
+                    true);
 
                 lock (syncRoot)
                     state.WarningSent = true;
@@ -157,12 +164,42 @@ namespace AfkManager.Features
             string userId = player.UserId;
             string roleName = player.Role.Type.ToString();
 
-            player.Broadcast(5, Config.MovedMessage, Broadcast.BroadcastFlags.Normal, true);
             Remove(player);
             player.Role.Set(RoleTypeId.Spectator);
+            player.Broadcast(
+                Config.MovedMessageDuration,
+                Config.MovedMessage,
+                Broadcast.BroadcastFlags.Normal,
+                true);
 
             if (isScp && Config.NotifyAdminsWhenScpMoved)
                 NotifyAdmins(playerName, userId, roleName);
+        }
+
+        private string BuildWarningMessage(int remainingSeconds, float warningAfter, float moveAfter)
+        {
+            int minutes = remainingSeconds / 60;
+            int seconds = remainingSeconds % 60;
+            string time = $"{minutes:00}:{seconds:00}";
+
+            float warningWindow = Math.Max(1f, moveAfter - warningAfter);
+            float remainingRatio = Math.Max(0f, Math.Min(1f, remainingSeconds / warningWindow));
+            int barLength = Math.Max(4, Config.ProgressBarLength);
+            int filledLength = Math.Max(0, Math.Min(barLength, (int)Math.Ceiling(barLength * remainingRatio)));
+            string bar = new string('█', filledLength) + new string('░', barLength - filledLength);
+
+            string color;
+            if (remainingSeconds <= 10)
+                color = "#FF3B3B";
+            else if (remainingRatio <= 0.5f)
+                color = "#FF9F43";
+            else
+                color = "#FFD966";
+
+            return Config.WarningMessage
+                .Replace("{time}", time)
+                .Replace("{bar}", bar)
+                .Replace("{color}", color);
         }
 
         private void NotifyAdmins(string playerName, string userId, string roleName)
