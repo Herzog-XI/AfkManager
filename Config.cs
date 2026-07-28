@@ -35,17 +35,8 @@ namespace AfkManager
         [Description("Duration of each refreshed AFK warning broadcast. Keep this slightly above CheckInterval.")]
         public ushort WarningDuration { get; set; } = 2;
 
-        [Description("Persistent AFK warning. Available placeholders: {time}, {bar}, {color}.")]
-        public string WarningMessage { get; set; } = "<color=#4F7DFF><b>AFK-Erkennung</b></color>\n<color=#FFD966>Du bist seit längerer Zeit inaktiv.</color>\n<size=30><color={color}><b>{time}</b></color></size>\n<color={color}>{bar}</color>\n<size=18><color=#CFCFCF>Bewege dich, um den Timer zurückzusetzen.</color></size>";
-
-        [Description("Number of characters used for the countdown progress bar.")]
-        public int ProgressBarLength { get; set; } = 16;
-
-        [Description("Message shown after moving the player to Spectator.")]
-        public string MovedMessage { get; set; } = "<color=#FF5A5A><b>Du wurdest wegen Inaktivität zum Zuschauer verschoben.</b></color>\n<size=18><color=#BEBEBE>Du kannst der nächsten Runde wieder normal beitreten.</color></size>";
-
-        [Description("Duration of the moved-to-Spectator message in seconds.")]
-        public ushort MovedMessageDuration { get; set; } = 8;
+        [Description("Persistent blue-and-white AFK warning. Available placeholder: {time}.")]
+        public string WarningMessage { get; set; } = "<color=#5B8CFF><b>AFK-Erkennung</b></color>\n<color=#FFFFFF>Du bist seit längerer Zeit inaktiv.</color>\n<size=32><color=#6EA8FF><b>{time}</b></color></size>\n<color=#FFFFFF>Bewege dich jetzt, um den Timer zurückzusetzen.</color>";
 
         [Description("Whether staff members with Remote Admin access receive a private broadcast when an SCP is moved to Spectator.")]
         public bool NotifyAdminsWhenScpMoved { get; set; } = true;
@@ -54,6 +45,6 @@ namespace AfkManager
         public ushort AdminNotificationDuration { get; set; } = 10;
 
         [Description("Private message shown to staff. Available placeholders: {player}, {userid}, {role}.")]
-        public string AdminScpMovedMessage { get; set; } = "<color=#FF5A5A>[AFK]</color> <color=white>{player} ({role}) wurde wegen Inaktivität zum Zuschauer verschoben.</color>";
+        public string AdminScpMovedMessage { get; set; } = "<color=#5B8CFF>[AFK]</color> <color=white>{player} ({role}) wurde wegen Inaktivität zum Zuschauer verschoben.</color>";
     }
 }
