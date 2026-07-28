@@ -145,7 +145,7 @@ namespace AfkManager.Features
             if (inactiveSeconds >= warningAfter && inactiveSeconds < moveAfter)
             {
                 int remainingSeconds = Math.Max(0, (int)Math.Ceiling(moveAfter - inactiveSeconds));
-                string warning = BuildWarningMessage(remainingSeconds, warningAfter, moveAfter);
+                string warning = BuildWarningMessage(remainingSeconds);
 
                 player.Broadcast(
                     Config.WarningDuration,
@@ -166,40 +166,18 @@ namespace AfkManager.Features
 
             Remove(player);
             player.Role.Set(RoleTypeId.Spectator);
-            player.Broadcast(
-                Config.MovedMessageDuration,
-                Config.MovedMessage,
-                Broadcast.BroadcastFlags.Normal,
-                true);
 
             if (isScp && Config.NotifyAdminsWhenScpMoved)
                 NotifyAdmins(playerName, userId, roleName);
         }
 
-        private string BuildWarningMessage(int remainingSeconds, float warningAfter, float moveAfter)
+        private string BuildWarningMessage(int remainingSeconds)
         {
             int minutes = remainingSeconds / 60;
             int seconds = remainingSeconds % 60;
             string time = $"{minutes:00}:{seconds:00}";
 
-            float warningWindow = Math.Max(1f, moveAfter - warningAfter);
-            float remainingRatio = Math.Max(0f, Math.Min(1f, remainingSeconds / warningWindow));
-            int barLength = Math.Max(4, Config.ProgressBarLength);
-            int filledLength = Math.Max(0, Math.Min(barLength, (int)Math.Ceiling(barLength * remainingRatio)));
-            string bar = new string('█', filledLength) + new string('░', barLength - filledLength);
-
-            string color;
-            if (remainingSeconds <= 10)
-                color = "#FF3B3B";
-            else if (remainingRatio <= 0.5f)
-                color = "#FF9F43";
-            else
-                color = "#FFD966";
-
-            return Config.WarningMessage
-                .Replace("{time}", time)
-                .Replace("{bar}", bar)
-                .Replace("{color}", color);
+            return Config.WarningMessage.Replace("{time}", time);
         }
 
         private void NotifyAdmins(string playerName, string userId, string roleName)
