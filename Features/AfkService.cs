@@ -165,13 +165,17 @@ namespace AfkManager.Features
                 NotifyAdmins(playerName, userId, roleName);
         }
 
-        private string BuildWarningMessage(int remainingSeconds)
+        private static string BuildWarningMessage(int remainingSeconds)
         {
             int minutes = remainingSeconds / 60;
             int seconds = remainingSeconds % 60;
             string time = $"{minutes:00}:{seconds:00}";
 
-            return (Config.WarningMessage ?? string.Empty).Replace("{time}", time);
+            return "<color=#5B8CFF><b>AFK-Erkennung</b></color>\n" +
+                   "<color=#FFFFFF>Du bist seit längerer Zeit inaktiv.</color>\n" +
+                   "<color=#FFFFFF>Bewege dich innerhalb von </color>" +
+                   $"<color=#5B8CFF><b>{time}</b></color>" +
+                   "<color=#FFFFFF>, um nicht zum Zuschauer verschoben zu werden.</color>";
         }
 
         private void NotifyAdmins(string playerName, string userId, string roleName)
