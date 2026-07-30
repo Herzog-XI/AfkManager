@@ -36,7 +36,7 @@ namespace AfkManager
         public ushort WarningDuration { get; set; } = 2;
 
         [Description("Persistent blue-and-white AFK warning. Available placeholder: {time}.")]
-        public string WarningMessage { get; set; } = "<color=#5B8CFF><b>AFK-Erkennung</b></color>\n<size=26><color=#5B8CFF><b>{time}</b></color></size>\n<color=#FFFFFF>Bewege dich, um den Timer zurückzusetzen.</color>";
+        public string WarningMessage { get; set; } = "<color=#5B8CFF><b>AFK-Erkennung</b></color>\n<color=#FFFFFF>Du bist seit längerer Zeit inaktiv.</color>\n<size=26><color=#5B8CFF><b>{time}</b></color></size>\n<color=#FFFFFF>Bewege dich innerhalb von {time}, um nicht zum Zuschauer verschoben zu werden.</color>";
 
         [Description("Whether staff members with Remote Admin access receive a private broadcast when an SCP is moved to Spectator.")]
         public bool NotifyAdminsWhenScpMoved { get; set; } = true;
