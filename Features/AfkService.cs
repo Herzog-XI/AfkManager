@@ -129,32 +129,26 @@ namespace AfkManager.Features
             if (moved || lookedAround)
             {
                 lock (syncRoot)
-                {
                     state.LastActivity = DateTime.UtcNow;
-                    state.WarningSent = false;
-                }
 
                 return;
             }
 
-            bool usesScpTimers = player.IsScp && player.Role.Type != RoleTypeId.Scp0492;
-            float warningAfter = usesScpTimers ? Config.ScpWarningAfter : Config.WarningAfter;
-            float moveAfter = usesScpTimers ? Config.ScpMoveAfter : Config.MoveAfter;
+            bool isScp = player.IsScp;
+            bool usesScpTimers = isScp && player.Role.Type != RoleTypeId.Scp0492;
+            float warningAfter = Math.Max(0f, usesScpTimers ? Config.ScpWarningAfter : Config.WarningAfter);
+            float moveAfter = Math.Max(warningAfter, usesScpTimers ? Config.ScpMoveAfter : Config.MoveAfter);
             double inactiveSeconds = (DateTime.UtcNow - state.LastActivity).TotalSeconds;
 
             if (inactiveSeconds >= warningAfter && inactiveSeconds < moveAfter)
             {
                 int remainingSeconds = Math.Max(0, (int)Math.Ceiling(moveAfter - inactiveSeconds));
-                string warning = BuildWarningMessage(remainingSeconds);
 
                 player.Broadcast(
                     Config.WarningDuration,
-                    warning,
+                    BuildWarningMessage(remainingSeconds),
                     Broadcast.BroadcastFlags.Normal,
                     true);
-
-                lock (syncRoot)
-                    state.WarningSent = true;
             }
 
             if (inactiveSeconds < moveAfter)
@@ -167,7 +161,7 @@ namespace AfkManager.Features
             Remove(player);
             player.Role.Set(RoleTypeId.Spectator);
 
-            if (usesScpTimers && Config.NotifyAdminsWhenScpMoved)
+            if (isScp && Config.NotifyAdminsWhenScpMoved)
                 NotifyAdmins(playerName, userId, roleName);
         }
 
@@ -176,23 +170,13 @@ namespace AfkManager.Features
             int minutes = remainingSeconds / 60;
             int seconds = remainingSeconds % 60;
             string time = $"{minutes:00}:{seconds:00}";
-            string configuredMessage = Config.WarningMessage ?? string.Empty;
 
-            // Existing server configs may still contain placeholders from the old progress-bar design.
-            // Fall back to the clean layout so those placeholders can never appear in-game.
-            if (configuredMessage.Contains("{bar}") || configuredMessage.Contains("{color}"))
-            {
-                configuredMessage = "<color=#5B8CFF><b>AFK-Erkennung</b></color>\n" +
-                                    "<size=26><color=#5B8CFF><b>{time}</b></color></size>\n" +
-                                    "<color=#FFFFFF>Bewege dich, um den Timer zurückzusetzen.</color>";
-            }
-
-            return configuredMessage.Replace("{time}", time);
+            return (Config.WarningMessage ?? string.Empty).Replace("{time}", time);
         }
 
         private void NotifyAdmins(string playerName, string userId, string roleName)
         {
-            string message = Config.AdminScpMovedMessage
+            string message = (Config.AdminScpMovedMessage ?? string.Empty)
                 .Replace("{player}", playerName ?? "Unknown")
                 .Replace("{userid}", userId ?? "Unknown")
                 .Replace("{role}", roleName ?? "Unknown");
