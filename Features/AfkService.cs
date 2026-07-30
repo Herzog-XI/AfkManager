@@ -137,9 +137,9 @@ namespace AfkManager.Features
                 return;
             }
 
-            bool isScp = player.IsScp;
-            float warningAfter = isScp ? Config.ScpWarningAfter : Config.WarningAfter;
-            float moveAfter = isScp ? Config.ScpMoveAfter : Config.MoveAfter;
+            bool usesScpTimers = player.IsScp && player.Role.Type != RoleTypeId.Scp0492;
+            float warningAfter = usesScpTimers ? Config.ScpWarningAfter : Config.WarningAfter;
+            float moveAfter = usesScpTimers ? Config.ScpMoveAfter : Config.MoveAfter;
             double inactiveSeconds = (DateTime.UtcNow - state.LastActivity).TotalSeconds;
 
             if (inactiveSeconds >= warningAfter && inactiveSeconds < moveAfter)
@@ -167,7 +167,7 @@ namespace AfkManager.Features
             Remove(player);
             player.Role.Set(RoleTypeId.Spectator);
 
-            if (isScp && Config.NotifyAdminsWhenScpMoved)
+            if (usesScpTimers && Config.NotifyAdminsWhenScpMoved)
                 NotifyAdmins(playerName, userId, roleName);
         }
 
@@ -176,8 +176,18 @@ namespace AfkManager.Features
             int minutes = remainingSeconds / 60;
             int seconds = remainingSeconds % 60;
             string time = $"{minutes:00}:{seconds:00}";
+            string configuredMessage = Config.WarningMessage ?? string.Empty;
 
-            return Config.WarningMessage.Replace("{time}", time);
+            // Existing server configs may still contain placeholders from the old progress-bar design.
+            // Fall back to the clean layout so those placeholders can never appear in-game.
+            if (configuredMessage.Contains("{bar}") || configuredMessage.Contains("{color}"))
+            {
+                configuredMessage = "<color=#5B8CFF><b>AFK-Erkennung</b></color>\n" +
+                                    "<size=26><color=#5B8CFF><b>{time}</b></color></size>\n" +
+                                    "<color=#FFFFFF>Bewege dich, um den Timer zurückzusetzen.</color>";
+            }
+
+            return configuredMessage.Replace("{time}", time);
         }
 
         private void NotifyAdmins(string playerName, string userId, string roleName)
