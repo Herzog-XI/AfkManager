@@ -15,7 +15,6 @@ namespace AfkManager.Features
         public float LastPitch { get; private set; }
         public float LastYaw { get; private set; }
         public DateTime LastActivity { get; set; }
-        public bool WarningSent { get; set; }
 
         public void UpdateSnapshot(float x, float y, float z, float pitch, float yaw)
         {
@@ -30,7 +29,6 @@ namespace AfkManager.Features
         {
             UpdateSnapshot(x, y, z, pitch, yaw);
             LastActivity = DateTime.UtcNow;
-            WarningSent = false;
         }
     }
 }
