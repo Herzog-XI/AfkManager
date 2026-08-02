@@ -76,6 +76,14 @@ namespace AfkManager.Features
         {
             try
             {
+                if (!Round.IsStarted)
+                {
+                    lock (syncRoot)
+                        trackedPlayers.Clear();
+
+                    return;
+                }
+
                 foreach (Player player in Player.List)
                     CheckPlayer(player);
             }
